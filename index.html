@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHRS FRMS Calculator</title>
+    <style>
+        /* --- DESIGN STYLES --- */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f0f2f5; 
+            margin: 0; 
+            padding: 20px; 
+            color: #333; 
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+       
+        /* Header */
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px; 
+        }
+        .status { 
+            color: #28a745; 
+            font-weight: bold; 
+            font-size: 0.9rem; 
+        }
+       
+        /* Cards */
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        h2 { 
+            margin-top: 0; 
+            color: #0056b3; 
+            border-bottom: 2px solid #e9ecef; 
+            padding-bottom: 10px; 
+            font-size: 1.1rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+       
+        /* Inputs */
+        label { 
+            display: block; 
+            font-weight: bold; 
+            margin-top: 15px; 
+            margin-bottom: 5px; 
+            color: #555; 
+        }
+        input[type="time"] { 
+            padding: 12px; 
+            font-size: 16px; 
+            width: 100%; 
+            box-sizing: border-box; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+            background: #fff; 
+        }
+        .time-row {
+            display: flex; 
+            gap: 20px; 
+        }
+        .time-row > div { 
+            flex: 1; 
+        }
+       
+        /* Compact Base Buttons */
+        .base-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .base-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 14px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .base-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+        .base-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+       
+        /* Checkbox */
+        .checkbox-container { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-top: 20px; 
+            border: 1px solid #e9ecef; 
+        }
+        .checkbox-label { 
+            display: flex; 
+            align-items: center; 
+            cursor: pointer; 
+            margin: 0; 
+            font-weight: normal;
+        }
+        input[type="checkbox"] { 
+            width: 20px; 
+            height: 20px; 
+            margin-right: 10px; 
+        }
+       
+        /* Buttons */
+        .btn { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 18px; 
+            font-size: 18px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            width: 100%; 
+            border-radius: 8px; 
+            margin-top: 25px; 
+            transition: background 0.2s; 
+        }
+        .btn:hover { 
+            background: #0056b3; 
+        }
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+       
+        /* Results */
+        .result-box { 
+            background: #e8f5e9; 
+            color: #1b5e20; 
+            padding: 20px; 
+            margin-top: 15px; 
+            border-radius: 8px; 
+            display: none; 
+            border: 1px solid #c8e6c9; 
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        .result-row { 
+            display: flex; 
+            justify-content: space-between; 
+            border-bottom: 1px solid #c8e6c9; 
+            padding: 10px 0; 
+            font-size: 1.1rem; 
+        }
+        .result-val { 
+            font-weight: bold; 
+            font-family: monospace; 
+            font-size: 1.2rem; 
+        }
+       
+        .main-metric { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid #2e7d32; 
+            padding-bottom: 15px; 
+        }
+        .metric-value { 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            display: block; 
+            margin-top: 5px; 
+            color: #2e7d32; 
+        }
+        .metric-note {
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        .placeholder {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1 style="margin:0; font-size:1.5rem;">WHRS FRMS Calculator</h1>
+        <span class="status">✓ System Online</span>
+    </div>
+
+    <div class="card">
+        <h2>1. Shift Details</h2>
+       
+        <label>Operating Base</label>
+        <div class="base-buttons">
+            <button type="button" class="base-btn" data-value="belmont">Belmont</button>
+            <button type="button" class="base-btn" data-value="lismore">Lismore</button>
+            <button type="button" class="base-btn" data-value="tamworth">Tamworth</button>
+        </div>
+
+        <div class="time-row">
+            <div>
+                <label for="start">FDP Start Time</label>
+                <input type="time" id="start" required>
+            </div>
+            <div>
+                <label for="end">FDP End Time</label>
+                <input type="time" id="end" required>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>2. Adjustments</h2>
+        
+        <div class="time-row">
+            <div>
+                <label for="nfd">NFD (HH:mm)</label>
+                <input type="time" id="nfd" value="00:00">
+            </div>
+            <div>
+                <label for="rest">SDRP (HH:mm)</label>
+                <input type="time" id="rest" value="00:00">
+            </div>
+        </div>
+       
+        <div class="checkbox-container">
+            <label class="checkbox-label">
+                <input type="checkbox" id="commute" checked>
+                Commute to home required?
+            </label>
+        </div>
+
+        <button class="btn" onclick="runLogic()">CALCULATE RESULTS</button>
+        <button class="btn btn-secondary" onclick="resetForm()">RESET FORM</button>
+    </div>
+
+    <div class="card">
+        <h2>Calculated Results</h2>
+        
+        <div id="errorMessage" class="error-message"></div>
+
+        <div id="resultsArea" class="result-box">
+            <div class="main-metric">
+                <span style="text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;">Earliest Next Start</span>
+                <span id="outNext" class="metric-value">--:--</span>
+                <div id="outDay" class="metric-note"></div>
+            </div>
+            <div class="result-row"><span>Max FDP (Table):</span> <span id="outMax" class="result-val">--</span></div>
+            <div class="result-row"><span>FDP Limit (HH:mm):</span> <span id="outLimit" class="result-val">--</span></div>
+            <div class="result-row"><span>Exceedance:</span> <span id="outExc" class="result-val">--</span></div>
+            <div class="result-row"><span>Total ODP (HH:mm):</span> <span id="outODP" class="result-val">--</span></div>
+        </div>
+       
+        <div id="placeholder" class="placeholder">
+            <em>Enter data above and press Calculate</em>
+        </div>
+    </div>
+</div>
+
+<script>
+    const MINUTES_PER_DAY = 1440;
+    const MAX_FDP_MINUTES = 960; // 16 hours
+    const BASE_ODP_COMMUTE = 600; // 10 hours
+    const BASE_ODP_NO_COMMUTE = 480; // 8 hours
+
+    // Parse HH:mm string to minutes
+    function parseTime(str) {
+        if (!str) return 0;
+        const [h, m] = str.split(':').map(Number);
+        return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+    }
+
+    // Format minutes as HH:mm (zero-padded)
+    function fmt(minutes) {
+        const h = String(Math.floor(minutes / 60)).padStart(2, '0');
+        const m = String(minutes % 60).padStart(2, '0');
+        return `${h}:${m}`;
+    }
+
+    // Format minutes as clock time (mod 24h)
+    function fmtClock(minutes) {
+        const total = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+        return fmt(total);
+    }
+
+    function showError(message) {
+        document.getElementById('errorMessage').textContent = message;
+        document.getElementById('errorMessage').style.display = 'block';
+        document.getElementById('resultsArea').style.display = 'none';
+        document.getElementById('placeholder').style.display = 'none';
+    }
+
+    function clearError() {
+        document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    function resetForm() {
+        document.querySelectorAll('.base-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('start').value = '';
+        document.getElementById('end').value = '';
+        document.getElementById('nfd').value = '00:00';
+        document.getElementById('rest').value = '00:00';
+        document.getElementById('commute').checked = true;
+        document.getElementById('resultsArea').style.display = 'none';
+        document.getElementById('placeholder').style.display = 'block';
+        clearError();
+    }
+
+    // Handle base button clicks
+    document.querySelectorAll('.base-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.base-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    function runLogic() {
+        clearError();
+        
+        // Get selected base
+        const activeBtn = document.querySelector('.base-btn.active');
+        const base = activeBtn ? activeBtn.getAttribute('data-value') : '';
+
+        const startVal = document.getElementById('start').value;
+        const endVal = document.getElementById('end').value;
+        const nfdVal = document.getElementById('nfd').value;
+        const restVal = document.getElementById('rest').value;
+        const commute = document.getElementById('commute').checked;
+
+        if (!base || !startVal || !endVal) {
+            showError("Please select a Base and fill in FDP Start Time and FDP End Time.");
+            return;
+        }
+
+        const start = parseTime(startVal);
+        const end = parseTime(endVal);
+        const nfd = parseTime(nfdVal);
+        const rest = parseTime(restVal);
+
+        // Calculate duration correctly across midnight
+        let duration = end - start;
+        if (duration <= 0) duration += MINUTES_PER_DAY;
+
+        // Table-based max FDP (in hours) based on start time
+        let limitHours = 10;
+        if (start >= 300 && start < 360) limitHours = 11;
+        else if (start >= 360 && start < 420) limitHours = 11.5;
+        else if (start >= 420 && start < 720) limitHours = 12;
+        else if (start >= 720 && start < 900) limitHours = 11;
+        else if (start >= 900 && start < 960) limitHours = 10.5;
+
+        const limitMinutes = limitHours * 60;
+
+        // FDP Limit calculation
+        let fdpLimit = limitMinutes - nfd;
+        if (rest > 120) fdpLimit += rest;
+        if (fdpLimit > MAX_FDP_MINUTES) fdpLimit = MAX_FDP_MINUTES;
+
+        // Exceedance
+        const exceedance = Math.max(0, duration - fdpLimit);
+
+        // ODP calculation
+        const halfRest = rest / 2;
+        const over12 = Math.max(0, (duration - halfRest) - 720);
+        let calcODP = commute ? BASE_ODP_COMMUTE : BASE_ODP_NO_COMMUTE;
+        calcODP += over12;
+
+        // Floor rule for commute
+        if (commute && calcODP < BASE_ODP_COMMUTE) calcODP = BASE_ODP_COMMUTE;
+
+        const penalty = Math.ceil(exceedance / 30) * 60;
+        const totalODP = calcODP + penalty;
+
+        // Next start time
+        const nextStart = end + totalODP;
+
+        // Update UI
+        document.getElementById('outMax').innerText = limitHours + (limitHours % 1 === 0.5 ? '.5' : '') + 'h';
+        document.getElementById('outLimit').innerText = fmt(fdpLimit);
+        document.getElementById('outExc').innerText = exceedance + ' mins';
+        document.getElementById('outODP').innerText = fmt(totalODP);
+        document.getElementById('outNext').innerText = fmtClock(nextStart);
+
+        if (nextStart >= 2880) {
+            document.getElementById('outDay').innerText = "(Two Days Later)";
+        } else if (nextStart >= MINUTES_PER_DAY) {
+            document.getElementById('outDay').innerText = "(Next Day)";
+        } else {
+            document.getElementById('outDay').innerText = "(Today)";
+        }
+
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('resultsArea').style.display = 'block';
+    }
+</script>
+</body>
+</html>
