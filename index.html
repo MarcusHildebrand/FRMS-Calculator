@@ -332,7 +332,7 @@
                 <div class="critical-value" id="critExtension">--:--</div>
             </div>
             <div class="critical-box">
-                <div class="critical-label">16Hr Limit</div>
+                <div class="critical-label">16hr Limit</div>
                 <div class="critical-value" id="crit16hr">--:--</div>
             </div>
         </div>
@@ -392,7 +392,7 @@
         document.getElementById('crit15hr').textContent = clock(fifteenHoursLater);
     }
 
-    // Update Box 3: 16Hr Limit = FDP Commenced + 16 hours
+    // Update Box 3: 16hr Limit = FDP Commenced + 16 hours
     function updateCritical16hr() {
         const startInput = document.getElementById('start').value;
         if (!startInput) {
@@ -415,9 +415,8 @@
         const nfd = parseTime(document.getElementById('nfd').value);
         const rest = parseTime(document.getElementById('rest').value);
 
-        // Replicate the FDP Extended calculation (same as in runLogic)
+        // Replicate the FDP Extended calculation
         let limitHours = 10;
-        const startHour = Math.floor(startMins / 60);
         if (startMins >= 300 && startMins < 360) limitHours = 11;
         else if (startMins >= 360 && startMins < 420) limitHours = 11.5;
         else if (startMins >= 420 && startMins < 720) limitHours = 12;
@@ -426,7 +425,7 @@
 
         let fdpLimit = limitHours * 60 - nfd;
         if (rest >= 120) fdpLimit += rest;
-        if (fdpLimit > MAX_FDP_MINUTES) fdpLimit = MAX_FDP_MINUTES;  // Cap at 16hr
+        if (fdpLimit > MAX_FDP_MINUTES) fdpLimit = MAX_FDP_MINUTES;
 
         const extensionTime = startMins + fdpLimit;
         document.getElementById('critExtension').textContent = clock(extensionTime);
@@ -452,7 +451,7 @@
         });
     });
 
-    // Live updates for Critical Times when inputs change
+    // Live updates for Critical Times
     document.getElementById('start').addEventListener('input', () => {
         updateCritical16hr();
         updateCriticalExtension();
