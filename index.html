@@ -164,6 +164,15 @@
         }
         .btn-secondary:hover { background: #545b62; }
 
+        /* ODP Breakdown Button */
+        .odp-breakdown-btn {
+            background: #28a745;
+            margin-top: 15px;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .odp-breakdown-btn:hover { background: #218838; }
+
         /* Critical Times Display */
         .critical-times {
             display: flex;
@@ -277,6 +286,51 @@
             color: #999;
             padding: 40px 20px;
         }
+
+        /* ODP Breakdown Modal */
+        .odp-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .odp-modal-content {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .odp-modal h3 {
+            margin-top: 0;
+            color: var(--header-text);
+        }
+        .odp-breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .odp-breakdown-row:last-child { border-bottom: none; }
+        .odp-breakdown-val {
+            font-weight: bold;
+            font-family: monospace;
+        }
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-modal:hover { color: var(--text-color); }
     </style>
 </head>
 <body>
@@ -370,6 +424,7 @@
             <div class="result-row"><span>FDP End Time:</span> <span id="outFdpEnd" class="result-val">--:--</span></div>
             <div class="result-row"><span>Exceedance:</span> <span id="outExc" class="result-val">--:--</span></div>
             <div class="result-row"><span>ODP (Hrs):</span> <span id="outODP" class="result-val">--:--</span></div>
+            <button class="btn odp-breakdown-btn" id="odpBreakdownBtn" onclick="showODPBreakdown()" style="display:none;">Show ODP Calculation</button>
         </div>
         <div id="placeholder" class="placeholder">
             <em>Enter data above and press Calculate</em>
@@ -377,13 +432,24 @@
     </div>
 </div>
 
+<!-- ODP Breakdown Modal -->
+<div id="odpModal" class="odp-modal">
+    <div class="odp-modal-content">
+        <span class="close-modal" onclick="document.getElementById('odpModal').style.display='none'">&times;</span>
+        <h3>ODP Calculation Breakdown</h3>
+        <div id="odpBreakdownContent"></div>
+    </div>
+</div>
+
 <script>
     const MINUTES_PER_DAY = 1440;
     const MAX_FDP_MINUTES = 960;
-    const BASE_ODP_COMMUTE = 600;
-    const BASE_ODP_NO_COMMUTE = 480;
+    const BASE_ODP = 480;  // 8 hours
+    const BASE_ODP_COMMUTE = 600;  // 10 hours
+    const LOCAL_NIGHT_START = 1380;  // 23:00
+    const LOCAL_NIGHT_END = 359;  // 05:59
 
-    // Nominal shift start times (in minutes past midnight)
+    // Nominal shift times
     const nominalStarts = {
         belmont:  { day: 420, night: 1140 },
         lismore:  { day: 420, night: 1140 },
@@ -393,7 +459,10 @@
     let selectedBase = 'belmont';
     let selectedShift = 'day';
     let userHasEditedEnd = false;
-    let resultsAreFresh = false;  // Track if results are up-to-date
+    let resultsAreFresh = false;
+
+    // Store last calculation details for breakdown
+    let lastODPDetails = {};
 
     // Helpers
     const parseTime = (str) => str ? str.split(':').map(Number).reduce((h, m) => h * 60 + m, 0) : 0;
@@ -404,13 +473,52 @@
     };
     const clock = (mins) => fmt(((mins % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY);
 
-    // Mark results as stale when any input changes
+    // Detect if FDP overlaps local night (worked into it)
+    function isFDPInLocalNight(start, end) {
+        if (end < start) end += MINUTES_PER_DAY;
+        const localStart = LOCAL_NIGHT_START;
+        const localEnd = LOCAL_NIGHT_END + MINUTES_PER_DAY;  // Crosses midnight
+        return start < localEnd && end > localStart;
+    }
+
+    // Mark results as stale
     function markResultsStale() {
         if (resultsAreFresh) {
             const resultsBox = document.getElementById('resultsArea');
             resultsBox.classList.remove('calculated');
             resultsBox.classList.add('stale');
+            document.getElementById('odpBreakdownBtn').style.display = 'none';
             resultsAreFresh = false;
+        }
+    }
+
+    // Show ODP breakdown modal
+    function showODPBreakdown() {
+        const content = document.getElementById('odpBreakdownContent');
+        let html = `
+            <div class="odp-breakdown-row"><span>Local Night Included in ODP:</span> <span class="odp-breakdown-val">${lastODPDetails.localNight ? 'Yes' : 'No'}</span></div>
+            <div class="odp-breakdown-row"><span>Base ODP:</span> <span class="odp-breakdown-val">${fmt(lastODPDetails.base)}</span></div>
+            <div class="odp-breakdown-row"><span>Over 12h Addition:</span> <span class="odp-breakdown-val">${fmt(lastODPDetails.over12)}</span></div>
+        `;
+        if (lastODPDetails.penalty > 0) {
+            html += `<div class="odp-breakdown-row"><span>Extension Penalty:</span> <span class="odp-breakdown-val">${fmt(lastODPDetails.penalty)}</span></div>`;
+            if (lastODPDetails.extensionBase8) {
+                html += `<div class="odp-breakdown-row"><span>(Penalty applied to 8hr base due to local night)</span> <span></span></div>`;
+            }
+        }
+        if (lastODPDetails.floorApplied) {
+            html += `<div class="odp-breakdown-row"><span>Floor to 10h (commute):</span> <span class="odp-breakdown-val">Applied</span></div>`;
+        }
+        html += `<div class="odp-breakdown-row"><span><strong>Total ODP:</strong></span> <span class="odp-breakdown-val"><strong>${fmt(lastODPDetails.total)}</strong></span></div>`;
+        content.innerHTML = html;
+        document.getElementById('odpModal').style.display = 'flex';
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('odpModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
         }
     }
 
@@ -574,13 +682,6 @@
         });
     });
 
-    function showError(msg) {
-        document.getElementById('errorMessage').textContent = msg;
-        document.getElementById('errorMessage').style.display = 'block';
-        document.getElementById('resultsArea').style.display = 'none';
-        document.getElementById('placeholder').style.display = 'none';
-    }
-
     function resetForm() {
         document.querySelectorAll('.base-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('.base-btn[data-value="belmont"]').classList.add('active');
@@ -605,6 +706,7 @@
 
         document.getElementById('resultsArea').style.display = 'none';
         document.getElementById('resultsArea').classList.remove('calculated', 'stale');
+        document.getElementById('odpBreakdownBtn').style.display = 'none';
         document.getElementById('placeholder').style.display = 'block';
         document.getElementById('errorMessage').style.display = 'none';
 
@@ -628,26 +730,76 @@
         const nfd = parseTime(document.getElementById('nfd').value);
         const rest = parseTime(document.getElementById('rest').value);
         const commute = document.getElementById('commute').checked;
+
         let duration = end - start;
         if (duration <= 0) duration += MINUTES_PER_DAY;
+
         let limitHours = 10;
         if (start >= 300 && start < 360) limitHours = 11;
         else if (start >= 360 && start < 420) limitHours = 11.5;
         else if (start >= 420 && start < 720) limitHours = 12;
         else if (start >= 720 && start < 900) limitHours = 11;
         else if (start >= 900 && start < 960) limitHours = 10.5;
+
         const limitMinutes = limitHours * 60;
         let fdpLimit = limitMinutes - nfd;
         if (rest >= 120) fdpLimit += rest;
         if (fdpLimit > MAX_FDP_MINUTES) fdpLimit = MAX_FDP_MINUTES;
+
         const exceedance = Math.max(0, duration - fdpLimit);
+
         const halfRest = rest / 2;
         const over12 = Math.max(0, (duration - halfRest) - 720);
-        let calcODP = commute ? BASE_ODP_COMMUTE : BASE_ODP_NO_COMMUTE;
-        calcODP += over12;
-        if (commute && calcODP < BASE_ODP_COMMUTE) calcODP = BASE_ODP_COMMUTE;
-        const penalty = Math.ceil(exceedance / 30) * 60;
-        const totalODP = calcODP + penalty;
+
+        // Local night detection: if FDP did not overlap local night
+        const localNightIncluded = !isFDPInLocalNight(start, end);
+
+        let calcODP;
+        let details = {
+            localNight: localNightIncluded,
+            base: 0,
+            over12: over12,
+            penalty: 0,
+            extensionBase8: false,
+            floorApplied: false,
+            total: 0
+        };
+
+        if (localNightIncluded) {
+            // Case 1
+            let baseODP = commute ? BASE_ODP_COMMUTE : BASE_ODP;
+            calcODP = baseODP + over12;
+            details.base = baseODP;
+
+            if (exceedance > 0) {
+                const penalty = Math.ceil(exceedance / 30) * 60;
+                details.extensionBase8 = true;
+                calcODP = BASE_ODP + over12 + penalty;  // 8hr base for penalty
+                details.base = BASE_ODP;
+                details.penalty = penalty;
+            }
+
+            // Floor if commute and <10h
+            if (commute && calcODP < BASE_ODP_COMMUTE) {
+                details.floorApplied = true;
+                calcODP = BASE_ODP_COMMUTE;
+            }
+        } else {
+            // Case 2
+            calcODP = BASE_ODP_COMMUTE + over12;  // Always 10hr
+            details.base = BASE_ODP_COMMUTE;
+
+            if (exceedance > 0) {
+                const penalty = Math.ceil(exceedance / 30) * 60;
+                calcODP += penalty;
+                details.penalty = penalty;
+            }
+        }
+
+        details.total = calcODP;
+        lastODPDetails = details;
+
+        const totalODP = calcODP;
         const nextStart = end + totalODP;
         const projectedFdpEnd = start + fdpLimit;
 
@@ -667,12 +819,12 @@
         document.getElementById('outDay').textContent = nextStart >= 2880 ? '(Two Days Later)' :
                                                     nextStart >= MINUTES_PER_DAY ? '(Next Day)' : '(Today)';
 
-        // Show results with fresh green background
         const resultsBox = document.getElementById('resultsArea');
         resultsBox.classList.remove('stale');
         resultsBox.classList.add('calculated');
         resultsBox.style.display = 'block';
         document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('odpBreakdownBtn').style.display = 'block';
         resultsAreFresh = true;
     }
 
